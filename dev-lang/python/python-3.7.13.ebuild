@@ -7,13 +7,18 @@ WANT_LIBTOOL="none"
 inherit autotools flag-o-matic multiprocessing pax-utils \
 	python-utils-r1 toolchain-funcs verify-sig
 
+MY_PV=${PV/_rc/rc}
 MY_P="Python-${PV%_p*}"
 PYVER=$(ver_cut 1-2)
 PATCHSET="python-gentoo-patches-${PV}"
 
 DESCRIPTION="An interpreted, interactive, object-oriented programming language"
-HOMEPAGE="https://www.python.org/"
-SRC_URI="https://www.python.org/ftp/python/${PV%_*}/${MY_P}.tar.xz
+HOMEPAGE="
+	https://www.python.org/
+	https://github.com/python/cpython/
+"
+SRC_URI="
+	https://www.python.org/ftp/python/${PV%_*}/${MY_P}.tar.xz
 	https://dev.gentoo.org/~mgorny/dist/python/${PATCHSET}.tar.xz
 	verify-sig? (
 		https://www.python.org/ftp/python/${PV%_*}/${MY_P}.tar.xz.asc
@@ -24,7 +29,10 @@ S="${WORKDIR}/${MY_P}"
 LICENSE="PSF-2"
 SLOT="${PYVER}/${PYVER}m"
 KEYWORDS="~alpha amd64 arm arm64 hppa ~ia64 ~m68k ~mips ppc ppc64 ~riscv ~s390 sparc x86"
-IUSE="bluetooth build examples gdbm hardened +ncurses +readline +sqlite +ssl test tk wininst +xml"
+IUSE="
+	bluetooth build examples gdbm hardened +ncurses
+	+readline +sqlite +ssl test tk wininst +xml
+"
 RESTRICT="!test? ( test )"
 
 # Do not add a dependency on dev-lang/python to this ebuild.
@@ -279,7 +287,9 @@ src_install() {
 		pax-mark m "${ED}/usr/bin/${abiver}"
 	fi
 
-	use sqlite || rm -r "${libdir}/"{sqlite3,test/test_sqlite*} || die
+	if ! use sqlite; then
+		rm -r "${libdir}/"{sqlite3,test/test_sqlite*} || die
+	fi
 	use tk || rm -r "${ED}/usr/bin/idle${PYVER}" "${libdir}/"{idlelib,tkinter,test/test_tk*} || die
 
 	use wininst || rm "${libdir}/distutils/command/"wininst-*.exe || die
@@ -292,8 +302,10 @@ src_install() {
 		dodoc -r Tools
 	fi
 	insinto /usr/share/gdb/auto-load/usr/$(get_libdir) #443510
-	local libname=$(printf 'e:\n\t@echo $(INSTSONAME)\ninclude Makefile\n' | \
-		emake --no-print-directory -s -f - 2>/dev/null)
+	local libname=$(
+		printf 'e:\n\t@echo $(INSTSONAME)\ninclude Makefile\n' |
+		emake --no-print-directory -s -f - 2>/dev/null
+	)
 	newins "${S}"/Tools/gdb/libpython.py "${libname}"-gdb.py
 
 	newconfd "${FILESDIR}/pydoc.conf" pydoc-${PYVER}
@@ -321,8 +333,7 @@ src_install() {
 	local scriptdir=${D}$(python_get_scriptdir)
 	mkdir -p "${scriptdir}" || die
 	# python and pythonX
-	ln -s "../../../bin/${abiver}" \
-		"${scriptdir}/python${pymajor}" || die
+	ln -s "../../../bin/${abiver}" "${scriptdir}/python${pymajor}" || die
 	ln -s "python${pymajor}" "${scriptdir}/python" || die
 	# python-config and pythonX-config
 	# note: we need to create a wrapper rather than symlinking it due
@@ -332,18 +343,13 @@ src_install() {
 		exec "${abiver}-config" "\${@}"
 	EOF
 	chmod +x "${scriptdir}/python${pymajor}-config" || die
-	ln -s "python${pymajor}-config" \
-		"${scriptdir}/python-config" || die
+	ln -s "python${pymajor}-config" "${scriptdir}/python-config" || die
 	# 2to3, pydoc, pyvenv
-	ln -s "../../../bin/2to3-${PYVER}" \
-		"${scriptdir}/2to3" || die
-	ln -s "../../../bin/pydoc${PYVER}" \
-		"${scriptdir}/pydoc" || die
-	ln -s "../../../bin/pyvenv-${PYVER}" \
-		"${scriptdir}/pyvenv" || die
+	ln -s "../../../bin/2to3-${PYVER}" "${scriptdir}/2to3" || die
+	ln -s "../../../bin/pydoc${PYVER}" "${scriptdir}/pydoc" || die
+	ln -s "../../../bin/pyvenv-${PYVER}" "${scriptdir}/pyvenv" || die
 	# idle
 	if use tk; then
-		ln -s "../../../bin/idle${PYVER}" \
-			"${scriptdir}/idle" || die
+		ln -s "../../../bin/idle${PYVER}" "${scriptdir}/idle" || die
 	fi
 }
