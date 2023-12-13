@@ -3,7 +3,7 @@
 
 EAPI=8
 
-DISTUTILS_USE_PEP517=hatchling
+DISTUTILS_USE_PEP517=setuptools
 PYTHON_COMPAT=( pypy3 python3_{10..12} )
 
 inherit distutils-r1
@@ -23,16 +23,15 @@ src_unpack() {
 	mkdir "${S}" || die
 	cat > "${S}/pyproject.toml" <<-EOF || die
 		[build-system]
-		requires = ["hatchling"]
-		build-backend = "hatchling.build"
+		requires = ["setuptools"]
+		build-backend = "setuptools.build_meta"
 
 		[project]
 		name = "tzdata"
 		version = "9999"
 		description = "tzdata shim to satisfy requirements (using system tzdata)"
 
-		[tool.hatch.build.targets.wheel]
-		# apparently it doesn't have to exist...
-		packages = ["gentoo_tzdata"]
+		[tool.setuptools]
+		packages = []
 	EOF
 }
