@@ -116,6 +116,10 @@ python_test() {
 		# value in JAVA_HOME, and the tests should get skipped.
 		export JAVA_HOME=$(java-config -O 2>/dev/null)
 
+		# The custom test runner internally calls pytest, among other things,
+		# *iff* available. Without manually running run_unittests.py there is
+		# no way to pass explicit pytest flags.
+		[[ ${NO_COLOR} ]] || export PY_COLORS=1
 		${EPYTHON} -u run_tests.py
 	) || die "Testing failed with ${EPYTHON}"
 }
