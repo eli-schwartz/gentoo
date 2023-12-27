@@ -78,9 +78,6 @@ python_prepare_all() {
 
 	sed -i "${disable_unittests[@]}" unittests/*.py || die
 
-	# Broken due to python2 script created by python_wrapper_setup
-	rm -r "test cases/frameworks/1 boost" || die
-
 	distutils-r1_python_prepare_all
 }
 
