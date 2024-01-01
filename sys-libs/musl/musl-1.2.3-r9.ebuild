@@ -1,9 +1,9 @@
 # Copyright 1999-2024 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=8
+EAPI=7
 
-inherit crossdev flag-o-matic toolchain-funcs prefix
+inherit eapi8-dosym flag-o-matic toolchain-funcs prefix
 if [[ ${PV} == "9999" ]] ; then
 	EGIT_REPO_URI="https://git.musl-libc.org/git/musl"
 	inherit git-r3
@@ -13,7 +13,7 @@ else
 
 	SRC_URI="https://musl.libc.org/releases/${P}.tar.gz"
 	SRC_URI+=" verify-sig? ( https://musl.libc.org/releases/${P}.tar.gz.asc )"
-	KEYWORDS="-* amd64 arm arm64 ~m68k ~mips ppc ppc64 ~riscv x86"
+	KEYWORDS="-* ~amd64 ~arm ~arm64 ~mips ~ppc ~ppc64 ~riscv ~x86"
 
 	BDEPEND="verify-sig? ( sec-keys/openpgp-keys-musl )"
 fi
@@ -25,12 +25,20 @@ SRC_URI+="
 	https://dev.gentoo.org/~blueness/musl-misc/iconv.c
 "
 
+export CBUILD=${CBUILD:-${CHOST}}
+export CTARGET=${CTARGET:-${CHOST}}
+if [[ ${CTARGET} == ${CHOST} ]] ; then
+	if [[ ${CATEGORY} == cross-* ]] ; then
+		export CTARGET=${CATEGORY#cross-}
+	fi
+fi
+
 DESCRIPTION="Light, fast and simple C library focused on standards-conformance and safety"
 HOMEPAGE="https://musl.libc.org"
 
 LICENSE="MIT LGPL-2 GPL-2"
 SLOT="0"
-IUSE="crypt headers-only split-usr"
+IUSE="crypt headers-only"
 
 QA_SONAME="usr/lib/libc.so"
 QA_DT_NEEDED="usr/lib/libc.so"
@@ -41,19 +49,19 @@ QA_PRESTRIPPED="usr/lib/crtn.o"
 # built as part as crossdev. Also, elide the blockers when in cross-*,
 # as it doesn't make sense to block the normal CBUILD libxcrypt at all
 # there when we're installing into /usr/${CHOST} anyway.
-if is_crosspkg ; then
+if [[ ${CATEGORY} == cross-* ]] ; then
 	IUSE="${IUSE/crypt/+crypt}"
 else
 	RDEPEND="crypt? ( !sys-libs/libxcrypt[system] )"
 	PDEPEND="!crypt? ( sys-libs/libxcrypt[system] )"
 fi
 
-PATCHES=(
-	"${FILESDIR}"/${P}-elfutils-0.190-relr.patch
-)
+is_crosscompile() {
+	[[ ${CHOST} != ${CTARGET} ]]
+}
 
 just_headers() {
-	use headers-only && target_is_not_host
+	use headers-only && is_crosscompile
 }
 
 pkg_setup() {
@@ -66,7 +74,7 @@ pkg_setup() {
 
 	# fix for #667126, copied from glibc ebuild
 	# make sure host make.conf doesn't pollute us
-	if target_is_not_host || tc-is-cross-compiler ; then
+	if is_crosscompile || tc-is-cross-compiler ; then
 		CHOST=${CTARGET} strip-unsupported-flags
 	fi
 }
@@ -78,7 +86,7 @@ src_unpack() {
 		# We only verify the release; not the additional (fixed, safe) files
 		# we download.
 		# (Seem to get IPC error on verifying in cross?)
-		! target_is_not_host && verify-sig_verify_detached "${DISTDIR}"/${P}.tar.gz{,.asc}
+		! is_crosscompile && verify-sig_verify_detached "${DISTDIR}"/${P}.tar.gz{,.asc}
 	fi
 
 	default
@@ -100,7 +108,7 @@ src_configure() {
 	just_headers && export CC=true
 
 	local sysroot
-	target_is_not_host && sysroot=/usr/${CTARGET}
+	is_crosscompile && sysroot=/usr/${CTARGET}
 	./configure \
 		--target=${CTARGET} \
 		--prefix="${EPREFIX}${sysroot}/usr" \
@@ -113,7 +121,7 @@ src_compile() {
 	just_headers && return 0
 
 	emake
-	if ! is_crosspkg ; then
+	if [[ ${CATEGORY} != cross-* ]] ; then
 		emake -C "${T}" getconf getent iconv \
 			CC="$(tc-getCC)" \
 			CFLAGS="${CFLAGS}" \
@@ -134,9 +142,9 @@ src_install() {
 
 	# musl provides ldd via a sym link to its ld.so
 	local sysroot=
-	target_is_not_host && sysroot=/usr/${CTARGET}
+	is_crosscompile && sysroot=/usr/${CTARGET}
 	local ldso=$(basename "${ED}${sysroot}"/lib/ld-musl-*)
-	dosym -r "${sysroot}/lib/${ldso}" "${sysroot}/usr/bin/ldd"
+	dosym8 -r "${sysroot}/lib/${ldso}" "${sysroot}/usr/bin/ldd"
 
 	if ! use crypt ; then
 		# Allow sys-libs/libxcrypt[system] to provide it instead
@@ -144,7 +152,7 @@ src_install() {
 		rm "${ED}/usr/$(get_libdir)/libcrypt.a" || die
 	fi
 
-	if ! is_crosspkg ; then
+	if [[ ${CATEGORY} != cross-* ]] ; then
 		# Fish out of config:
 		#   ARCH = ...
 		#   SUBARCH = ...
@@ -154,17 +162,43 @@ src_install() {
 		# The musl build system seems to create a symlink:
 		# ${D}/lib/ld-musl-${arch}.so.1 -> /usr/lib/libc.so.1 (absolute)
 		# During cross or within prefix, there's no guarantee that the host is
-		# using musl so that file may not exist. Use a relative symlink within
-		# ${D} instead.
-		rm "${ED}"/lib/ld-musl-${arch}.so.1 || die
-		if use split-usr; then
-			dosym ../usr/lib/libc.so /lib/ld-musl-${arch}.so.1
-			# If it's still a dead symlink, OK, we really do need to abort.
-			[[ -e "${ED}"/lib/ld-musl-${arch}.so.1 ]] || die
-		else
-			dosym libc.so /usr/lib/ld-musl-${arch}.so.1
-			[[ -e "${ED}"/usr/lib/ld-musl-${arch}.so.1 ]] || die
+		# using musl so that file may not exist. And on systems without
+		# merged-usr, a relative symlink isn't reliable.
+		#
+		# Reverse the order, and make ld.so a real file. Since libc.so is only
+		# needed by the compiler, make it into a linker script.
+		local ldso_name=${ED}/lib/ld-musl-${arch}.so.1
+		rm "${ldso_name}" || die
+		mv "${ED}"/usr/lib/libc.so "${ldso_name}" || die
+
+		# copied from usr-ldscript.eclass
+		#
+		# OUTPUT_FORMAT gives hints to the linker as to what binary format
+		# is referenced ... makes multilib saner
+		local flags=( ${CFLAGS} ${LDFLAGS} -Wl,--verbose )
+		if $(tc-getLD) --version | grep -q 'GNU gold' ; then
+				# If they're using gold, manually invoke the old bfd. #487696
+				local d="${T}/bfd-linker"
+				mkdir -p "${d}"
+				ln -sf $(type -P ${CHOST}-ld.bfd) "${d}"/ld
+				flags+=( -B"${d}" )
 		fi
+		local output_format=$($(tc-getCC) "${flags[@]}" 2>&1 | sed -n 's/^OUTPUT_FORMAT("\([^"]*\)",.*/\1/p')
+		[[ -n ${output_format} ]] && output_format="OUTPUT_FORMAT ( ${output_format} )"
+
+		cat > "${ED}/usr/lib/libc.so" <<-END_LDSCRIPT
+			/* GNU ld script
+			   Since Gentoo has critical dynamic libraries in /lib, and the static versions
+			   in /usr/lib, we need to have a "fake" dynamic lib in /usr/lib, otherwise we
+			   run into linking problems.  This "fake" dynamic lib is a linker script that
+			   redirects the linker to the real lib.  And yes, this works in the cross-
+			   compiling scenario as the sysroot-ed linker will prepend the real path.
+
+			   See bug https://bugs.gentoo.org/4411 for more info.
+			 */
+			${output_format}
+			GROUP ( /lib/ld-musl-${arch}.so.1 )
+		END_LDSCRIPT
 
 		cp "${FILESDIR}"/ldconfig.in-r3 "${T}"/ldconfig.in || die
 		sed -e "s|@@ARCH@@|${arch}|" "${T}"/ldconfig.in > "${T}"/ldconfig || die
@@ -179,7 +213,7 @@ src_install() {
 		doenvd "${T}"/00musl
 	fi
 
-	if target_is_not_host ; then
+	if is_crosscompile ; then
 		into /usr/${CTARGET}
 		dolib.a libssp_nonshared.a
 	else
@@ -196,7 +230,7 @@ pkg_preinst() {
 }
 
 pkg_postinst() {
-	target_is_not_host && return 0
+	is_crosscompile && return 0
 
 	[ -n "${ROOT}" ] && return 0
 
