@@ -1,0 +1,110 @@
+From 891be7571bca55ba14d519e0b5dc31083e22137a Mon Sep 17 00:00:00 2001
+From: Eli Schwartz <eschwartz93@gmail.com>
+Date: Wed, 17 Jan 2024 11:50:35 -0500
+Subject: [PATCH] Remove unused dependency on libXi
+
+In commit 6c1db901e22f21eb8ffa1ea03da562a59c115067, the
+appears_to_be_wayland function was reverted (commented out, really), but
+the includes and scaffolding for it were left in. This has a couple of
+effects:
+
+- The compiler emits a warning for unused functions
+- An additional header include is used
+- The link command is longer, and tries to link to libXi, resulting in
+  overlinking unless -Wl,--as-needed is used
+
+The original rationale for keeping it:
+
+> I've left the "is on wayland?" detection code that is otherwise now
+> unused, in case we want it later.
+
+The code has gone untouched for several years now, so it is probably
+time to remove it altogether. In a pinch, it can always be retrieved via
+`git log`.
+
+Signed-off-by: Eli Schwartz <eschwartz93@gmail.com>
+---
+ Makefile |  4 ++--
+ xdo.c    | 33 ---------------------------------
+ 2 files changed, 2 insertions(+), 35 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 94891c5..3334b00 100644
+--- a/Makefile
++++ b/Makefile
+@@ -36,8 +36,8 @@ DEFAULT_LIBS=-L/usr/X11R6/lib -L/usr/local/lib -lX11 -lXtst -lXinerama -lxkbcomm
+ DEFAULT_INC=-I/usr/X11R6/include -I/usr/local/include
+ 
+ XDOTOOL_LIBS=$(shell pkg-config --libs x11 2> /dev/null || echo "$(DEFAULT_LIBS)")  $(shell sh platform.sh extralibs)
+-LIBXDO_LIBS=$(shell pkg-config --libs xi x11 xtst xinerama xkbcommon 2> /dev/null || echo "$(DEFAULT_LIBS)")
+-INC=$(shell pkg-config --cflags xi x11 xtst xinerama xkbcommon 2> /dev/null || echo "$(DEFAULT_INC)")
++LIBXDO_LIBS=$(shell pkg-config --libs x11 xtst xinerama xkbcommon 2> /dev/null || echo "$(DEFAULT_LIBS)")
++INC=$(shell pkg-config --cflags x11 xtst xinerama xkbcommon 2> /dev/null || echo "$(DEFAULT_INC)")
+ CFLAGS+=-std=c99 $(INC)
+ 
+ CMDOBJS= cmd_click.o cmd_mousemove.o cmd_mousemove_relative.o cmd_mousedown.o \
+diff --git a/xdo.c b/xdo.c
+index ffb0333..7fa3b9b 100644
+--- a/xdo.c
++++ b/xdo.c
+@@ -28,7 +28,6 @@
+ #include <X11/Xutil.h>
+ #include <X11/extensions/XTest.h>
+ #include <X11/extensions/Xinerama.h>
+-#include <X11/extensions/XInput2.h>
+ #include <X11/keysym.h>
+ #include <X11/cursorfont.h>
+ 
+@@ -70,7 +69,6 @@ static int _xdo_mousebutton(const xdo_t *xdo, Window window, int button, int is_
+ static int _is_success(const char *funcname, int code, const xdo_t *xdo);
+ static void _xdo_debug(const xdo_t *xdo, const char *format, ...);
+ static void _xdo_eprintf(const xdo_t *xdo, int hushable, const char *format, ...);
+-static int appears_to_be_wayland(Display *xdpy);
+ 
+ /* context-free functions */
+ static wchar_t _keysym_to_char(KeySym keysym);
+@@ -117,16 +115,6 @@ xdo_t* xdo_new_with_opened_display(Display *xdpy, const char *display,
+     return NULL;
+   }
+ 
+-  // This library and xdotool do not work correctly on Wayland/XWayland.
+-  // Try to detect XWayland and warn the user about problems.
+-  // TODO(sissel): This was disabled due to issue #346
+-  //  -- xdotool works on XWayland for some operations, so it isn't helpful to refuse all usage on XWayland.
+-  //if (appears_to_be_wayland(xdpy)) {
+-    //fprintf(stderr, "The X server at %s appears to be XWayland. Unfortunately, XWayland does not correctly support the features used by libxdo and xdotool.\n", display);
+-    //return NULL;
+-  //}
+-
+-
+   /* XXX: Check for NULL here */
+   xdo = malloc(sizeof(xdo_t));
+   memset(xdo, 0, sizeof(xdo_t));
+@@ -2051,24 +2039,3 @@ int xdo_get_viewport_dimensions(xdo_t *xdo, unsigned int *width,
+     return xdo_get_window_size(xdo, root, width, height);
+   }
+ }
+-
+-static int appears_to_be_wayland(Display *xdpy) {
+-  // XWayland leaks its presence in two extensions (at time of writing, August 2021)
+-  // First: the name of input devices "xwayland-pointer"
+-  // Second: in the Vendor string of XFree86-VidModeExtension
+-
+-  int count;
+-  XDeviceInfo *devices = XListInputDevices(xdpy, &count);
+-  for (int i = 0; i < count; i++) {
+-    // fprintf(stderr, "Device %d: %s\n", i, devices[i].name);
+-    // If the input device name starts with "xwayland-", 
+-    // there's a good chance we're running on XWayland.
+-    if (strstr(devices[i].name, "xwayland-") == devices[i].name) {
+-      XFreeDeviceList(devices);
+-      return 1; // Running on wayland
+-    }
+-  }
+-  XFreeDeviceList(devices);
+-
+-  return 0;
+-}
+-- 
+2.43.0
+
