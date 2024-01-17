@@ -143,6 +143,8 @@ src_configure() {
 
 	# bug #767712
 	tc-export PKG_CONFIG
+	# LTO
+	LDFLAGS="${CFLAGS} ${LDFLAGS}"
 
 	# - audit: somebody got to explain me how I can test this before I
 	# enable it.. - Diego
