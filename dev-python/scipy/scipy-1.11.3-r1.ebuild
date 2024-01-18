@@ -86,7 +86,7 @@ src_unpack() {
 	fi
 }
 
-python_configure_all() {
+src_configure() {
 	# https://github.com/scipy/scipy/pull/19857
 	# Fixed in 1.13.0
 	filter-lto
@@ -95,6 +95,7 @@ python_configure_all() {
 		-Dlapack=lapack
 		-Duse-pythran=$(usex fortran true false)
 	)
+	distutils-r1_src_configure
 }
 
 python_test() {
