@@ -56,6 +56,7 @@ RDEPEND="${COMMON_DEPEND}
 	cjk? ( app-text/poppler-data )
 "
 DEPEND="${COMMON_DEPEND}
+	x11-base/xorg-proto
 	boost? ( >=dev-libs/boost-1.71 )
 	test? (
 		qt5? (
