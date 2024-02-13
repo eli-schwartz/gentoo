@@ -75,6 +75,12 @@ PATCHES=(
 	"${FILESDIR}/${PN}-1.9.7-musl-1.2.4.patch"
 	"${FILESDIR}/${PN}-1.9.8-suppress-unused-option-libcxx.patch"
 
+	# Fix manpage installation
+	# - manpages are only automatically installed when docs are
+	# - all manpages are installed, even when USE="-doxysearch -gui"
+	# https://github.com/doxygen/doxygen/pull/10647
+	"${FILESDIR}"/0001-cmake-always-install-man-pages-only-install-for-the-.patch
+
 	# Backports
 )
 
@@ -144,17 +150,4 @@ src_compile() {
 		# -j1 for bug #770070
 		cmake_src_compile docs -j1
 	fi
-}
-
-src_install() {
-	cmake_src_install
-
-	# manpages are only automatically installed when docs are
-	# https://github.com/doxygen/doxygen/pull/10647
-	doman doc/doxygen.1
-	use gui && doman doc/doxywizard.1
-	use doxysearch && {
-		doman doc/doxyindexer.1
-		doman doc/doxysearch.1
-	}
 }
