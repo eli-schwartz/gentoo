@@ -60,6 +60,7 @@ python_prepare_all() {
 }
 
 python_configure_all() {
+	filter-lto
 	DISTUTILS_ARGS=(
 		-Dallow-noblas=$(usex !lapack true false)
 		-Dblas=$(usev lapack cblas)
