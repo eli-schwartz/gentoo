@@ -1506,7 +1506,10 @@ distutils-r1_python_compile() {
 	_python_check_EPYTHON
 
 	case ${DISTUTILS_USE_PEP517:-setuptools} in
-		setuptools)
+		# pbr is a setuptools wrapper. Standalone may or may not
+		# wrap setuptools (the setuptools package itself does!)
+		# so better to do too much rather than too little.
+		setuptools|pbr|standalone)
 			# call setup.py build when using setuptools (either via PEP517
 			# or in legacy mode)
 
