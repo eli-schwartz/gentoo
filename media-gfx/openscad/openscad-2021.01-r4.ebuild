@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit elisp-common qmake-utils xdg
+inherit elisp-common flag-o-matic qmake-utils xdg
 
 SITEFILE="50${PN}-gentoo.el"
 
@@ -70,6 +70,8 @@ PATCHES=(
 )
 
 src_configure() {
+	filter-lto
+
 	if has ccache ${FEATURES}; then
 		eqmake5 "PREFIX = ${ESYSROOT}/usr" "CONFIG += ccache" "${PN}.pro"
 	else
