@@ -1643,7 +1643,7 @@ distutils-r1_python_install() {
 		# let's explicitly verify these assumptions
 
 		# remove files that we've created explicitly
-		rm "${reg_scriptdir}"/{"${EPYTHON}",python3,python,pyvenv.cfg} || die
+		rm -f "${reg_scriptdir}"/{"${EPYTHON}",python3,python,pyvenv.cfg} || die
 
 		# Automagically do the QA check to avoid issues when bootstrapping
 		# prefix.
