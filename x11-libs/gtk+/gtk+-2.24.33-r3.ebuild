@@ -106,6 +106,8 @@ PATCHES=(
 	"${FILESDIR}"/${PN}-2.24.33-respect-NM.patch # requires eautoreconf
 	# Fix casts, bug #880617
 	"${FILESDIR}"/${PN}-2.24.33-Fix-casts.patch
+	# Backport fix for autoconf 2.71 mishandling of deprecated constructs
+	"${FILESDIR}"/${PN}-2.24.33-configure.ac-Use-AC_RUN_IFELSE-instead-deprecated-AC.patch
 )
 
 strip_builddir() {
