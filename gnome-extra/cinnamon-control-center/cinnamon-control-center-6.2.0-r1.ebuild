@@ -5,7 +5,7 @@ EAPI=8
 
 PYTHON_COMPAT=( python3_{10..13} )
 
-inherit meson gnome2-utils python-any-r1 xdg virtualx
+inherit meson flag-o-matic gnome2-utils python-any-r1 xdg virtualx
 
 DESCRIPTION="Cinnamons's main interface to configure various aspects of the desktop"
 HOMEPAGE="https://projects.linuxmint.com/cinnamon/ https://github.com/linuxmint/cinnamon-control-center"
@@ -14,7 +14,7 @@ SRC_URI="https://github.com/linuxmint/cinnamon-control-center/archive/${PV}.tar.
 LICENSE="GPL-2+ LGPL-2+ LGPL-2.1+ MIT"
 SLOT="0"
 KEYWORDS="~amd64 ~arm64 ~loong ~ppc64 ~riscv ~x86"
-IUSE="+colord input_devices_wacom +networkmanager +modemmanager systemd test wayland"
+IUSE="+colord input_devices_wacom +networkmanager +modemmanager systemd test wayland X"
 REQUIRED_USE="modemmanager? ( networkmanager )"
 RESTRICT="test"
 
@@ -28,7 +28,7 @@ COMMON_DEPEND="
 	>=sys-auth/polkit-0.103
 	>=sys-power/upower-0.99.8:=
 	>=x11-libs/gdk-pixbuf-2.23.0:2
-	>=x11-libs/gtk+-3.16.0:3[wayland=]
+	>=x11-libs/gtk+-3.24.41-r1:3[wayland?,X?]
 	>=dev-libs/libgudev-232
 	>=x11-libs/libnotify-0.7.3
 	x11-libs/cairo
@@ -88,6 +88,10 @@ src_prepare() {
 }
 
 src_configure() {
+	# defang automagic dependencies
+	use wayland || append-cflags -DGENTOO_GTK_HIDE_WAYLAND
+	use X || append-cflags -DGENTOO_GTK_HIDE_X11
+
 	local emesonargs=(
 		$(meson_use colord color)
 		$(meson_use modemmanager)
