@@ -15,7 +15,7 @@ SRC_URI="https://github.com/linuxmint/cinnamon/archive/${PV}.tar.gz -> ${P}.tar.
 LICENSE="BSD GPL-2+ GPL-3+ GPL-3-with-openssl-exception LGPL-2+ LGPL-2.1 LGPL-2.1+ MIT"
 SLOT="0"
 KEYWORDS="~amd64 ~arm64 ~loong ~riscv ~x86"
-IUSE="+eds +gstreamer gtk-doc internal-polkit +nls +networkmanager wayland"
+IUSE="+eds +gstreamer gtk-doc internal-polkit +nls +networkmanager wayland X"
 REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 
 DEPEND="
@@ -32,7 +32,7 @@ DEPEND="
 	virtual/opengl
 	x11-libs/cairo
 	x11-libs/gdk-pixbuf:2[introspection]
-	>=x11-libs/gtk+-3.12.0:3[introspection,wayland?]
+	>=x11-libs/gtk+-3.12.0:3[introspection,wayland?,X?]
 	>=x11-libs/libnotify-0.7.3:0=[introspection]
 	x11-libs/libX11
 	>=x11-libs/libXfixes-5.0
@@ -152,6 +152,9 @@ src_prepare() {
 }
 
 src_configure() {
+	# defang automagic dependencies
+	use X || append-cflags -DGENTOO_GTK_HIDE_X11
+
 	local emesonargs=(
 		$(meson_use gstreamer build_recorder)
 		$(meson_use gtk-doc docs)
