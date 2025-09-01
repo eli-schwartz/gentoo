@@ -84,6 +84,9 @@ src_prepare() {
 
 src_configure() {
 	use sparc && tc-is-gcc && append-flags -fno-tree-ccp # bug 686620
+	# bug #922800, LTO failures:
+	use fortran && filter-lto
+
 	local myconf=(
 		--disable-static
 		--enable-deprecated-symbols
